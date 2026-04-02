@@ -1,0 +1,12 @@
+/.quarto/
+**/*.quarto_ipynb
+/.vscode/
+/_freeze/
+
+# macOS
+.DS_Store
+
+# Ignore massive data files
+/data/
+/data/filtered_data.csv
+/data/meta_spectrum_smooth.csv

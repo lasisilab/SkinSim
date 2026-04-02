@@ -1,0 +1,34 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "SkinSim"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: analysis/index.qmd
+        text: Analysis
+      - href: about.qmd
+        text: About
+
+execute:
+  freeze: auto
+  echo: false
+  warning: false
+  message: false
+
+bibliography: references.bib
+
+format:
+  html:
+    theme:
+      - cosmo
+    css: styles.css
+    toc: true
+    code-fold: true
+    number-sections: true
+
+
+

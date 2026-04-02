@@ -1,0 +1,31 @@
+---
+title: "About"
+---
+
+SkinSim is a statistical modeling project focused on human skin reflectance spectra by Junhui He, Jian Kang, and Tina Lasisi.
+
+## Data foundation
+
+- Real data: ISSA (International Skin Spectra Archive).
+- Simulated data: biophysical skin models and Monte Carlo-based spectra.
+
+## Workflow
+
+This website follows a reproducible, analysis-first workflow:
+
+- analysis/: qmd files for analysis reports.
+- notebooks/: ipynb files for data processing, modeling, and visualization.
+- code/: reusable scripts and modeling utilities.
+- data/: source and intermediate datasets.
+- docs/: project documentation and references.
+
+## Methods in this project
+
+- Descriptive statistics to summarize the reflectance data.
+- Reflectance spectrum filter to classify realistic skin reflectance spectra from synthetic ones.
+- Shape analysis to explore the relationship between skin properties and reflectance shapes.
+- Bayesian varying coefficient models to investigate the effects of skin parameters on skin reflectance.
+
+## Reproducibility
+
+The project is built with Quarto and supports both R and Python so analyses can be rendered and shared consistently as a versioned website.

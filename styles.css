@@ -1,0 +1,180 @@
+/* Scientific research style */
+
+:root {
+  --paper-bg: #ffffff;
+  --ink: #101828;
+  --muted-ink: #344054;
+  --accent: #005ea8;
+  --accent-strong: #004a86;
+  --border: #cfd8e3;
+  --code-bg: #f6f8fb;
+  --panel-bg: #f9fbff;
+}
+
+body {
+  background: var(--paper-bg);
+  color: var(--ink);
+  font-family: "Source Serif 4", "Noto Serif", Georgia, serif;
+  font-size: clamp(17px, 1rem + 0.2vw, 20px);
+  line-height: 1.78;
+  text-rendering: optimizeLegibility;
+}
+
+main.content {
+  max-width: 1020px;
+  padding: 0 1rem 2rem;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: #0f2942;
+  font-family: "IBM Plex Sans", "Noto Sans", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: clamp(1.9rem, 1.5rem + 1vw, 2.35rem);
+  margin-bottom: 0.8rem;
+}
+
+h2 {
+  font-size: clamp(1.35rem, 1.15rem + 0.5vw, 1.7rem);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25rem;
+  margin-top: 2rem;
+}
+
+h3 {
+  font-size: clamp(1.15rem, 1.05rem + 0.35vw, 1.35rem);
+}
+
+p,
+li {
+  color: var(--ink);
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+  text-decoration-thickness: 0.08em;
+}
+
+a:hover {
+  color: var(--accent-strong);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #ffbf47;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Improve legibility of analysis outputs */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.98rem;
+  background: #ffffff;
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+th {
+  background: #e6eef9;
+  color: #122842;
+}
+
+tbody tr:nth-child(even) {
+  background: #f7fafe;
+}
+
+pre,
+code {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+}
+
+code {
+  font-size: 0.92em;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+}
+
+blockquote {
+  border-left: 4px solid #99b8da;
+  margin: 1.1rem 0;
+  padding: 0.35rem 1rem;
+  background: var(--panel-bg);
+  color: #223a53;
+}
+
+figure {
+  margin: 1.5rem auto;
+}
+
+figcaption,
+.quarto-figure-caption {
+  color: var(--muted-ink);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.math.display {
+  padding: 0.5rem 0.75rem;
+  background: #f4f7fb;
+  border-left: 3px solid #9ab4d0;
+}
+
+/* Keep navbar readable against bootstrap dark theme */
+.navbar .nav-link,
+.navbar .navbar-brand,
+.navbar .menu-text {
+  font-family: "IBM Plex Sans", "Noto Sans", "Segoe UI", sans-serif;
+  font-weight: 600;
+}
+
+.navbar .nav-link {
+  opacity: 0.95;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 768px) {
+  body {
+    line-height: 1.7;
+  }
+
+  main.content {
+    padding: 0 0.85rem 1.25rem;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

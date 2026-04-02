@@ -1,0 +1,26 @@
+---
+title: "SkinSim"
+---
+
+A statistical project for human skin reflectance spectrum. The reflectance spectrum of human skin is a crucial aspect of dermatological research, cosmetic science, and medical diagnostics. This project aims to analyze and model the reflectance properties of human skin across different wavelengths of light.
+
+## Datasets
+
+The project will utilize datasets that include measurements of skin reflectance across various wavelengths. These datasets include real measurements sourced from public repositories, and synthetic data simulated through biophysical models.
+
+- Real measurements: International Skin Spectra Archive (**ISSA**) [@lu2025issa], a multicultural human skin phenotype dataset, containing 15,256 records of both spectral and colorimetric data derived from 2,113 subjects. This dataset covers a wide variability in skin characteristics such as geography, ethnicity, age, gender, and body location.
+- Synthetic data: Generated through a biophysical layered skin model and Monte Carlo light transport simulations [@aliaga2023hyperspectral]. This approach learns the mapping between the skin parameters and diffuse skin reflectance through an encoder-decoder network.
+
+## Statistical analyses
+
+The project will perform various statistical analyses to explore the properties of skin reflectance. These analyses include:
+
+- Descriptive statistics to summarize the reflectance data.
+- Reflectance spectrum filter to classify realistic skin reflectance spectra from synthetic ones.
+- Shape analysis to explore the relationship between skin properties and reflectance shapes.
+- Bayesian varying coefficient models to investigate the effects of skin parameters on skin reflectance.
+
+## References
+
+::: {#refs}
+:::
