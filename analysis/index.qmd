@@ -1,0 +1,19 @@
+---
+title: "Analysis"
+---
+
+This section contains statistical analysis reports as followings:
+
+1. Descriptive statistics and visualizations: 
+    - [Simulated Reflectances](sim_data.qmd)
+    - [ISSA Skin Reflectance](../notebooks/issa_data.ipynb)
+
+2. Reflectance spectrum filter: 
+    - [Skin Reflectance Spectra Filter](../notebooks/spectra_filter.ipynb)
+    - [Analysis of Skin Reflectance Spectra Filter](../notebooks/spectra_params.ipynb)
+
+3. Shape analysis:
+    - [Shape Analysis of Skin Reflectance Spectra](../notebooks/shape.ipynb)
+
+4. Bayesian varying coefficient models:
+    - [Bayesian Varying Coefficient Models for Skin Reflectance](../notebooks/bvcm.ipynb)

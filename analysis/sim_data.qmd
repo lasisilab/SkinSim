@@ -1,0 +1,488 @@
+---
+title: " Simulated Reflectance"
+author: "Tina Lasisi"
+date: today
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# Load required libraries
+library(tidyverse)
+library(knitr)
+library(scales)
+library(patchwork)
+library(ggbeeswarm)
+library(ggridges)
+library(ggmulti)
+library(paletteer)
+library(stringr)
+
+# Get available palettes for potential use
+palettedf <- tibble(paletteer::palettes_d_names)
+
+# Set global chunk options for the document
+knitr::opts_chunk$set(
+  echo = FALSE,        # Don't show code in output
+  include = TRUE,      # Include output
+  eval = TRUE,         # Evaluate code chunks
+  warning = FALSE,     # Don't show warnings
+  message = FALSE,     # Don't show messages
+  fig.retina = 2,      # Higher resolution figures
+  fig.width = 8,       # Default figure width
+  fig.height = 6,      # Default figure height
+  out.width = "100%"   # Full width in HTML output
+)
+```
+
+```{r functions}
+# ==============================================================================
+# UTILITY FUNCTIONS
+# ==============================================================================
+
+#' Save plot with explicit filename
+#' 
+#' @param plot The ggplot object to save
+#' @param plot_path Directory to save the plot in
+#' @param filename Name of the file to save
+#' @param width Width of the saved plot in inches
+#' @param height Height of the saved plot in inches
+pltsave_func <- function(plot, plot_path, filename, width, height){
+  ggsave(
+    filename = filename,
+    plot = plot, 
+    path = plot_path,
+    width = width,
+    height = height
+  )
+}
+
+# ==============================================================================
+# DATA PROCESSING FUNCTIONS
+# ==============================================================================
+
+#' Process raw spectral data from CSV
+#' 
+#' This function reads a CSV file of spectral data and:
+#' 1. Renames columns to wavelength values (W380, W382, etc.)
+#' 2. Converts values to percentages (multiply by 100)
+#' 
+#' @param file_name Path to the CSV file
+#' @return A data frame with renamed columns and percentage values
+processData <- function(file_name) {
+  # Read the CSV file (all columns as numeric)
+  data <- read.csv(file_name, colClasses = "numeric")
+  
+  # Generate wavelength column names (W380, W382, W384, etc.)
+  # Starting at 380nm with 2nm intervals
+  new_names <- paste0("W", seq(from = 380, 
+                               to = (380 + (2 * (ncol(data) - 1))), 
+                               by = 2))
+  
+  # Rename columns and convert to percentages
+  processed_data <- data %>%
+    set_names(new_names) %>% 
+    mutate_all(~ .x * 100)
+  
+  return(processed_data)
+}
+
+#' Calculate melanin index and prepare data for plotting
+#' 
+#' This function:
+#' 1. Calculates the melanin index (CMI) using wavelengths 640-670nm
+#' 2. Filters data to reasonable CMI range (20-130)
+#' 3. Samples data to prevent plot overload
+#' 4. Converts to long format for ggplot
+#' 
+#' @param data Processed spectral data frame
+#' @param sample_size Number of spectra to sample (default 400)
+#' @return Long-format data frame with id, wavelength, reflectance, and cmi
+calculateMIndex <- function(data, sample_size = 400) {
+  # Calculate melanin index using the formula from the literature
+  # This uses the red region of the spectrum (640-670nm)
+  data_processed <- data %>% 
+    mutate(
+      # Average reflectance in the red region
+      eqn1 = ((W650 + W660 + (0.5 * W640) + (0.5 * W660)) / 3) / 100,
+      # Convert to melanin index
+      cmi = 100 * log10(1 / eqn1)
+    )
+  
+  # Prepare data for plotting
+  data_long <- data_processed %>%
+    mutate(id = row_number()) %>%
+    # Filter to reasonable melanin index range
+    filter(cmi >= 20 & cmi <= 130) %>% 
+    # Sample to prevent plot overload
+    slice_sample(n = sample_size) %>% 
+    # Convert to long format
+    pivot_longer(starts_with("W"), 
+                 names_to = "wavelength", 
+                 values_to = "reflectance") %>% 
+    # Extract numeric wavelength values
+    mutate(wavelength = as.numeric(str_remove(wavelength, "\\D+"))) %>% 
+    # Focus on visible spectrum
+    filter(wavelength >= 400 & wavelength <= 700) %>%
+    select(id, everything())
+  
+  return(data_long)
+}
+
+# ==============================================================================
+# PLOTTING FUNCTIONS
+# ==============================================================================
+
+#' Generate skin spectra plot
+#' 
+#' Creates a plot showing reflectance spectra colored by melanin index
+#' 
+#' @param data Long-format data with wavelength, reflectance, and cmi
+#' @return A ggplot object
+generateSkinSpectraPlot <- function(data) {
+  plot <- ggplot(data, aes(x = wavelength, y = reflectance, 
+                           group = id, color = cmi)) +
+    geom_line(alpha = 0.6) +  # Add transparency to handle overlapping lines
+    # Color gradient from dark to light skin
+    scale_color_gradientn(
+      colours = c("#42230c", "#a15c33", "#fbf7ec"),
+      values = rescale(x = c(50, 40, 20)),
+      oob = squish,
+      limits = c(20, 130)
+    ) +
+    expand_limits(y = 0) +
+    theme_classic() +
+    labs(
+      x = "Wavelength (nm)",
+      y = "Percent Reflectance of Skin",
+      color = "Melanin Index"
+    ) +
+    guides(color = guide_colorbar(reverse = TRUE)) +
+    # Highlight the region used for melanin index calculation
+    annotate("rect", xmin = 640, xmax = 670, ymin = 0, ymax = 70,
+             alpha = 0.3, fill = "#ff0000") +
+    labs(
+      title = "Spectra from subsample of 400 simulated skin tones",
+      subtitle = "Red region (640-670nm) is used to calculate melanin index"
+    )
+  
+  return(plot)
+}
+
+#' Wrapper function to process file and generate plot
+#' 
+#' @param file_name Path to the CSV file
+#' @return A ggplot object
+generateSkinSpectraPlotWrapper <- function(file_name) {
+  # Process the data
+  processed_data <- processData(file_name)
+  
+  # Calculate melanin index
+  data_with_mindex <- calculateMIndex(processed_data)
+  
+  # Generate the plot
+  plot <- generateSkinSpectraPlot(data_with_mindex)
+  
+  return(plot)
+}
+
+# ==============================================================================
+# FUNCTION TO CREATE ALL THREE PLOTS
+# ==============================================================================
+
+#' Create all three dataset plots for side-by-side comparison
+#' 
+#' @param folder_path Base directory containing the data folders
+#' @return A list of three plots
+createThreeDatasetPlots <- function(folder_path) {
+  
+  plots <- list()
+  
+  # Find and process the three specific files
+  train_file <- list.files(file.path(folder_path, "train"), 
+                          pattern = "dataset.*\\[0\\.000-1\\.000\\].*\\[0\\.650-0\\.800\\].*\\.csv$", 
+                          full.names = TRUE)[1]
+  
+  test_wide_file <- list.files(file.path(folder_path, "test"), 
+                               pattern = "dataset.*\\[0\\.000-1\\.000\\].*\\[0\\.650-0\\.800\\].*\\.csv$", 
+                               full.names = TRUE)[1]
+  
+  test_narrow_file <- list.files(file.path(folder_path, "test"), 
+                                pattern = "dataset.*\\[0\\.001-0\\.035\\].*\\[0\\.700-0\\.780\\].*\\.csv$", 
+                                full.names = TRUE)[1]
+  
+  # Process each file
+  if (!is.na(train_file)) {
+    processed_data <- processData(train_file)
+    data_with_mindex <- calculateMIndex(processed_data)
+    plot1 <- generateSkinSpectraPlot(data_with_mindex) +
+      labs(title = "TRAINING Dataset",
+           subtitle = "Wide ranges: Thickness 0-1.0, Eumelanin 0.65-0.80") +
+      theme(plot.title = element_text(size = 12, face = "bold"),
+            plot.subtitle = element_text(size = 9),
+            legend.position = "bottom")
+    plots$train <- plot1
+  }
+  
+  if (!is.na(test_wide_file)) {
+    processed_data <- processData(test_wide_file)
+    data_with_mindex <- calculateMIndex(processed_data)
+    plot2 <- generateSkinSpectraPlot(data_with_mindex) +
+      labs(title = "TEST Dataset (Wide)",
+           subtitle = "Same as training: Thickness 0-1.0, Eumelanin 0.65-0.80") +
+      theme(plot.title = element_text(size = 12, face = "bold"),
+            plot.subtitle = element_text(size = 9),
+            legend.position = "bottom")
+    plots$test_wide <- plot2
+  }
+  
+  if (!is.na(test_narrow_file)) {
+    processed_data <- processData(test_narrow_file)
+    data_with_mindex <- calculateMIndex(processed_data)
+    plot3 <- generateSkinSpectraPlot(data_with_mindex) +
+      labs(title = "TEST Dataset (Narrow)",
+           subtitle = "Narrow TH & EU ranges: Thickness 0.001-0.035, Eumelanin 0.70-0.78") +
+      theme(plot.title = element_text(size = 12, face = "bold"),
+            plot.subtitle = element_text(size = 9),
+            legend.position = "bottom")
+    plots$test_narrow <- plot3
+  }
+  
+  return(plots)
+}
+
+#' Create summary statistics plot instead of individual lines
+#' 
+#' This function creates a ribbon plot showing mean ± SD to handle large datasets
+#' 
+#' @param data Long-format data with wavelength, reflectance, and cmi
+#' @return A ggplot object with summary statistics
+generateSummarySpectraPlot <- function(data) {
+  # Calculate summary statistics by wavelength
+  summary_data <- data %>%
+    group_by(wavelength) %>%
+    summarise(
+      mean_reflectance = mean(reflectance),
+      sd_reflectance = sd(reflectance),
+      min_reflectance = min(reflectance),
+      max_reflectance = max(reflectance),
+      q25 = quantile(reflectance, 0.25),
+      q75 = quantile(reflectance, 0.75),
+      .groups = 'drop'
+    )
+  
+  # Create plot with ribbon showing variability
+  plot <- ggplot(summary_data, aes(x = wavelength)) +
+    # Show full range as light ribbon
+    geom_ribbon(aes(ymin = min_reflectance, ymax = max_reflectance), 
+                alpha = 0.2, fill = "gray70") +
+    # Show interquartile range as darker ribbon
+    geom_ribbon(aes(ymin = q25, ymax = q75), 
+                alpha = 0.3, fill = "gray50") +
+    # Show mean ± 1 SD
+    geom_ribbon(aes(ymin = mean_reflectance - sd_reflectance, 
+                    ymax = mean_reflectance + sd_reflectance), 
+                alpha = 0.4, fill = "steelblue") +
+    # Show mean line
+    geom_line(aes(y = mean_reflectance), size = 1.2, color = "darkblue") +
+    # Highlight melanin index region
+    annotate("rect", xmin = 640, xmax = 670, ymin = 0, ymax = 70,
+             alpha = 0.3, fill = "#ff0000") +
+    theme_classic() +
+    labs(
+      x = "Wavelength (nm)",
+      y = "Percent Reflectance of Skin",
+      title = "Summary of skin reflectance spectra",
+      subtitle = "Mean (dark line) ± SD (blue), IQR (dark gray), and full range (light gray)"
+    )
+  
+  return(plot)
+}
+```
+
+# Overview of Simulated Skin Reflectance Datasets
+
+This analysis examines three distinct datasets of simulated skin reflectance spectra:
+
+1. **Training Dataset**: Wide parameter ranges for model training
+2. **Test Dataset (Wide)**: Same parameter ranges as training for validation
+3. **Test Dataset (Narrow)**: Restricted parameter ranges to test model performance on a specific subset
+
+**Note**: All datasets measure reflectance from 380-1000nm wavelength range, though plots focus on the visible spectrum (400-700nm).
+
+**Terminology**: "Parameter range" refers to the minimum and maximum values allowed for each skin property in the simulation. For example, thickness range 0.000-1.000 means skin thickness can vary anywhere from 0 to 1 (in appropriate units).
+
+## Dataset Parameters
+
+### Parameters that remain CONSTANT across all datasets:
+- **Melanin (ME)**: 0.001-0.430 - Total melanin content controlling overall skin darkness
+- **Blood Volume (BL)**: 0.000-0.200 - Amount of blood in skin affecting redness/pinkness
+- **Oxygenation (OX)**: 0.900-1.000 - Blood oxygen saturation level (high = red, low = blue)
+
+### Parameters that VARY between datasets:
+- **Thickness (TH)**: Physical thickness of skin layer affecting how light scatters
+  - Wide range: 0.000-1.000 (full physiological range)
+  - Narrow range: 0.001-0.035 (very thin skin only)
+- **Eumelanin (EU)**: Fraction of melanin that is eumelanin (brown/black) vs pheomelanin (red/yellow)
+  - Wide range: 0.650-0.800 (moderate to high eumelanin)
+  - Narrow range: 0.700-0.780 (high eumelanin only)
+
+## Meta Spectrum Overview
+
+First, let's examine the overall meta spectrum file that contains the full range of simulated spectra:
+
+```{r meta-spectrum-plot, fig.cap="Sample of skin reflectance spectra colored by melanin index", fig.height=5}
+# Generate plot from the meta spectrum file
+meta_plot <- generateSkinSpectraPlotWrapper("../data/meta_spectrum_smooth.csv")
+print(meta_plot)
+```
+
+# Comparison of Three Datasets
+
+## Summary of Dataset Differences
+
+**Only TWO parameters vary between datasets:**
+1. **Thickness (TH)**: Skin thickness affecting light scattering
+2. **Eumelanin (EU)**: Ratio of brown/black vs red/yellow pigment
+
+All other parameters (Melanin, Blood Volume, Oxygenation) remain constant across all three datasets.
+
+**"Narrow" refers to the parameter RANGES being narrower, not the skin itself.**
+
+## Dataset 1: Training Data with Wide Parameter Ranges
+- **Purpose**: Train models on the full range of skin thickness and eumelanin values
+- **Thickness**: 0.000-1.000 (full range from very thin to thick skin)
+- **Eumelanin**: 0.650-0.800 (moderate to high brown/black pigment)
+
+## Dataset 2: Test Data with Wide Parameter Ranges  
+- **Purpose**: Test model performance on same parameter space as training
+- **Thickness**: 0.000-1.000 (matches training data)
+- **Eumelanin**: 0.650-0.800 (matches training data)
+
+## Dataset 3: Test Data with Narrow Parameter Ranges
+- **Purpose**: Evaluate model on a specific subset - very thin skin with high eumelanin
+- **Thickness**: 0.001-0.035 (only very thin skin - ~3.5% of the full range)
+- **Eumelanin**: 0.700-0.780 (high eumelanin only - ~53% of the training range)
+- **"Narrow" refers to**: Both thickness AND eumelanin parameter RANGES being narrower/restricted compared to training data
+- **Physical interpretation**: This represents very thin skin (like eyelids) with predominantly brown/black pigmentation
+
+## Side-by-Side Comparison of All Three Datasets
+
+```{r three-plots-comparison, fig.width=15, fig.height=5}
+# Create all three plots
+folder_path <- "../data"
+plots <- createThreeDatasetPlots(folder_path)
+
+# Combine plots side by side using patchwork
+if (length(plots) == 3) {
+  combined_plot <- plots$train | plots$test_wide | plots$test_narrow
+  combined_plot <- combined_plot + 
+    plot_annotation(
+      title = "Comparison of Training and Test Datasets",
+      subtitle = "Each plot shows 400 randomly sampled spectra colored by melanin index"
+    )
+  print(combined_plot)
+} else {
+  cat("Note: Could not find all three dataset files.\n")
+  # Display whatever plots were found
+  for (name in names(plots)) {
+    print(plots[[name]])
+  }
+}
+```
+
+### Complete Parameter Values for Each Dataset
+
+```{r parameter-table, results='asis'}
+# Create a table showing all parameters for each dataset.
+param_table <- tibble::tibble(
+  Parameter = c("Melanin (ME)", "Blood Volume (BL)", "<strong>Thickness (TH)</strong>",
+                "<strong>Eumelanin (EU)</strong>", "Oxygenation (OX)"),
+  `Training Dataset` = c("0.001-0.430", "0.000-0.200", "<strong>0.000-1.000</strong>",
+                         "<strong>0.650-0.800</strong>", "0.900-1.000"),
+  `Test Dataset (Wide)` = c("0.001-0.430", "0.000-0.200", "<strong>0.000-1.000</strong>",
+                            "<strong>0.650-0.800</strong>", "0.900-1.000"),
+  `Test Dataset (Narrow)` = c("0.001-0.430", "0.000-0.200", "<strong>0.001-0.035</strong>",
+                              "<strong>0.700-0.780</strong>", "0.900-1.000")
+)
+
+knitr::kable(
+  param_table,
+  caption = "Parameter ranges for all three datasets. Bold values indicate parameters that vary between datasets.",
+  align = c("l", "c", "c", "c"),
+  escape = FALSE
+)
+
+cat(
+  "\n::: {.callout-note}\n",
+  "## Key differences\n",
+  "- **Training & Test (Wide):** Identical parameters across the full physiological range.\n",
+  "- **Test (Narrow):** Restricted ranges for both thickness (0.001-0.035) and eumelanin (0.700-0.780).\n",
+  "- The narrow dataset tests whether models trained on broad ranges can generalize to a constrained subspace.\n",
+  ":::\n",
+  sep = ""
+)
+
+dataset_summary <- tibble::tibble(
+  Dataset = c("Training", "Test (Wide)", "Test (Narrow)"),
+  `ME (Melanin)` = c("0.001-0.430", "0.001-0.430", "0.001-0.430"),
+  `BL (Blood)` = c("0.000-0.200", "0.000-0.200", "0.000-0.200"),
+  `TH (Thickness)` = c("0.000-1.000", "0.000-1.000", "0.001-0.035"),
+  `EU (Eumelanin)` = c("0.650-0.800", "0.650-0.800", "0.700-0.780"),
+  `OX (Oxygenation)` = c("0.900-1.000", "0.900-1.000", "0.900-1.000")
+)
+
+knitr::kable(
+  dataset_summary,
+  caption = "Per-dataset parameter summary.",
+  align = c("l", "c", "c", "c", "c", "c")
+)
+
+range_compare <- tibble::tibble(
+  Parameter = c("Thickness (TH)", "Eumelanin (EU)"),
+  `Training/Wide Range` = c("1.000", "0.150"),
+  `Narrow Range` = c("0.034", "0.080"),
+  `Narrow as % of Wide` = c("3.4%", "53.3%")
+)
+
+knitr::kable(
+  range_compare,
+  caption = "Range compression in the narrow test dataset.",
+  align = c("l", "c", "c", "c")
+)
+
+cat(
+  "\n```text\n",
+  "THICKNESS (TH)\n",
+  "Training/Wide: |==================================| 0.000 to 1.000\n",
+  "Narrow:        |=|                                  0.001 to 0.035\n",
+  "\n",
+  "EUMELANIN (EU)\n",
+  "Training/Wide: |==================================| 0.650 to 0.800\n",
+  "Narrow:        |       ================|            0.700 to 0.780\n",
+  "```\n",
+  sep = ""
+)
+```
+
+## Key Observations
+
+### Training vs Test (Wide) Datasets
+- Both contain the same parameter ranges
+- This allows for direct validation of model performance
+- Any differences in model performance can be attributed to the specific spectra sampled, not parameter range differences
+
+### Test (Narrow) Dataset Characteristics  
+- **"Narrow" means BOTH parameters are restricted:**
+  - Thickness reduced from 0.000-1.000 to 0.001-0.035 (only ~3.5% of original range)
+  - Eumelanin reduced from 0.650-0.800 to 0.700-0.780 (only ~53% of original range)
+- Focuses exclusively on very thin skin with high eumelanin content
+- Tests whether models trained on wide ranges can accurately predict spectra for this specific physiological subset
+- Represents a challenging test case as it uses only a small portion of the training parameter space
+
+## Implications for Model Development
+
+1. **Generalization Testing**: The wide test set validates general model performance across the full parameter space
+2. **Specific Case Testing**: The narrow test set evaluates performance on a challenging subset (very thin, high-eumelanin skin)
+3. **Parameter Coverage**: 
+   - Training covers the full physiological range
+   - Test (Narrow) uses only ~3.5% of the thickness range and ~53% of the eumelanin range
+   - This tests model interpolation capability within a restricted parameter space
